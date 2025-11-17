@@ -1,51 +1,50 @@
 import fs from "fs";
-import path from "path";
 import os from "os";
-import { promisify } from "util";
-import pdfPoppler from "pdf-poppler";
-
-const unlink = promisify(fs.unlink);
+import pdf from "pdf-poppler";
 
 export async function convertPdfToImages(pdfBuffer) {
-  const tmpDir = os.tmpdir(); // Cross-platform temp directory
+  const tmpDir = os.tmpdir();
   const timestamp = Date.now();
 
-  const tempInput = path.join(tmpDir, `input_${timestamp}.pdf`);
-  const tempOutputPrefix = `output_${timestamp}`;
+  const tempPdfPath = `${tmpDir}/input_${timestamp}.pdf`;
+  const outPrefix = `output_${timestamp}`;
 
-  // Save buffer → temp file
-  fs.writeFileSync(tempInput, pdfBuffer);
+  // 1. Write PDF buffer → temp file
+  fs.writeFileSync(tempPdfPath, pdfBuffer);
 
   const options = {
     format: "jpeg",
     out_dir: tmpDir,
-    out_prefix: tempOutputPrefix,
-    page: null, // all pages
+    out_prefix: outPrefix,
+    page: null, // convert all pages
   };
 
-  // Convert PDF → images
-  await pdfPoppler.convert(tempInput, options);
+  try {
+    // 2. Convert PDF → Images
+    await pdf.convert(tempPdfPath, options);
 
-  // Read all generated JPEG files
-  const files = fs
-    .readdirSync(tmpDir)
-    .filter(
-      (file) => file.startsWith(tempOutputPrefix) && file.endsWith(".jpg")
+    // 3. Read all generated image files
+    const allFiles = fs.readdirSync(tmpDir);
+    const outputFiles = allFiles.filter(
+      (f) => f.startsWith(outPrefix) && f.endsWith(".jpg")
     );
 
-  // Convert each image → base64
-  const base64Images = files.map((file) => {
-    const imgPath = path.join(tmpDir, file);
-    const data = fs.readFileSync(imgPath).toString("base64");
+    const base64Images = outputFiles.map((filename) => {
+      const filePath = `${tmpDir}/${filename}`;
+      const data = fs.readFileSync(filePath).toString("base64");
 
-    // Cleanup each file
-    unlink(imgPath).catch(() => {});
+      // delete image file
+      fs.unlinkSync(filePath);
 
-    return data;
-  });
+      return data;
+    });
 
-  // Cleanup input PDF
-  unlink(tempInput).catch(() => {});
+    // delete temp PDF file
+    fs.unlinkSync(tempPdfPath);
 
-  return base64Images;
+    return base64Images;
+  } catch (err) {
+    console.error("PDF conversion failed:", err);
+    throw err;
+  }
 }
