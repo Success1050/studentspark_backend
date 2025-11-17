@@ -104,6 +104,7 @@ router.post("/upload-note", async (req, res) => {
       console.log("PDF seems scanned → Performing OCR with GPT-5-mini");
 
       const images = await convertPdfToImages(fileBuffer);
+      console.log("Generated images count:", images.length);
 
       if (!images || images.length === 0) {
         throw new Error("PDF conversion failed: no images were generated.");
