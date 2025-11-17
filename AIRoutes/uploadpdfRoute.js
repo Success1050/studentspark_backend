@@ -91,7 +91,7 @@ router.post("/upload-note", async (req, res) => {
       .replace(/\n/g, "")
       .trim();
 
-    const hasNoText = !pdfText.text || cleanText.length < 50;
+    const hasNoText = !pdfText || cleanText.length < 50;
 
     console.log(
       "Original text length:",
