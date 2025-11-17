@@ -21,7 +21,7 @@
     "nodemon": "^3.1.10",
     "openai": "^6.8.1",
     "pdf-extraction": "^1.0.2",
-    "pdf-poppler": "^0.2.3"
+    "pdf2pic": "^3.2.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
