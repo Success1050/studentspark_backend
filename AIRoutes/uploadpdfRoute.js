@@ -154,7 +154,7 @@ router.post("/upload-note", async (req, res) => {
               },
               ...urls.map((url) => ({
                 type: "input_image",
-                file: url,
+                image_url: url,
               })),
             ],
           },
