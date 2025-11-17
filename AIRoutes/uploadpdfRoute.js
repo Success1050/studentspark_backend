@@ -103,13 +103,21 @@ router.post("/upload-note", async (req, res) => {
     if (hasNoText) {
       console.log("PDF seems scanned → Performing OCR with GPT-5-mini");
 
+      // 1️⃣ Convert PDF → images
       const images = await convertPdfToImages(fileBuffer);
 
-      console.log("the images for gbu", images);
+      if (!images || images.length === 0) {
+        throw new Error("PDF conversion failed: no images were generated.");
+      }
 
+      console.log("Generated images count:", images.length);
+
+      // 2️⃣ Upload each image to Supabase and collect public URLs
       const urls = [];
+
       for (let i = 0; i < images.length; i++) {
         const fileName = `ocr_img_${Date.now()}_${i}.jpg`;
+
         const { data: imageData, error } = await supabase.storage
           .from("temp")
           .upload(fileName, Buffer.from(images[i], "base64"), {
@@ -125,7 +133,6 @@ router.post("/upload-note", async (req, res) => {
           data: { publicUrl },
         } = supabase.storage.from("temp").getPublicUrl(imageData.path);
 
-        // ✅ Ensure URL is valid
         if (!publicUrl) {
           throw new Error(`Supabase returned null URL for ${fileName}`);
         }
@@ -133,8 +140,9 @@ router.post("/upload-note", async (req, res) => {
         urls.push(publicUrl);
       }
 
-      console.log("images gotten", urls);
+      console.log("Uploaded image URLs:", urls);
 
+      // 3️⃣ Send images to OpenAI OCR
       const ocrResponse = await openai.responses.create({
         model: "gpt-4.1-mini",
         input: [
@@ -154,10 +162,10 @@ router.post("/upload-note", async (req, res) => {
         ],
       });
 
-      // 4️⃣ Return OCR text
-      console.log("shout gbu", ocrResponse.output_text);
-
+      // 4️⃣ Assign OCR result to pdfText
       pdfText = ocrResponse.output_text;
+
+      console.log("OCR extracted text:", pdfText);
     }
 
     // Generate summary using OpenAI

@@ -8,61 +8,49 @@ export async function convertPdfToImages(pdfBuffer) {
   const outPrefix = `output_${timestamp}`;
   const savePath = `${tmpDir}/${outPrefix}`;
 
-  // Create output directory
-  if (!fs.existsSync(savePath)) {
-    fs.mkdirSync(savePath, { recursive: true });
-  }
+  if (!fs.existsSync(savePath)) fs.mkdirSync(savePath, { recursive: true });
 
   const options = {
-    density: 100, // DPI (higher = better quality but larger files)
-    saveFilename: "page", // prefix for output files
-    savePath: savePath, // directory to save images
-    format: "jpg", // output format
-    width: 2000, // optional: max width
-    height: 2000, // optional: max height
+    density: 150,
+    saveFilename: "page",
+    savePath,
+    format: "jpg",
+    width: 2000,
+    height: 2000,
   };
 
-  try {
-    // 1. Convert PDF buffer to images
-    const convert = fromBuffer(pdfBuffer, options);
+  const convert = fromBuffer(pdfBuffer, options);
 
-    // 2. Get PDF info to know how many pages
-    const storeAsImage = convert.bulk(-1, { responseType: "base64" });
-    const results = await storeAsImage;
+  // Convert page by page
+  const base64Images = [];
+  let page = 1;
 
-    // 3. Extract base64 data from results
-    const base64Images = results.map((result) => {
-      return result.base64;
-    });
-
-    // 4. Cleanup: Delete generated files
+  while (true) {
     try {
-      const files = fs.readdirSync(savePath);
-      files.forEach((file) => {
-        fs.unlinkSync(`${savePath}/${file}`);
-      });
-      fs.rmdirSync(savePath);
-    } catch (cleanupErr) {
-      console.warn("Cleanup warning:", cleanupErr.message);
+      const result = await convert(page, { responseType: "base64" });
+      if (!result || !result.base64) break;
+
+      base64Images.push(result.base64);
+      page++;
+    } catch (err) {
+      // No more pages or error
+      break;
     }
-
-    return base64Images;
-  } catch (err) {
-    console.error("PDF conversion failed:", err);
-
-    // Cleanup on error
-    try {
-      if (fs.existsSync(savePath)) {
-        const files = fs.readdirSync(savePath);
-        files.forEach((file) => {
-          fs.unlinkSync(`${savePath}/${file}`);
-        });
-        fs.rmdirSync(savePath);
-      }
-    } catch (cleanupErr) {
-      console.warn("Cleanup error:", cleanupErr.message);
-    }
-
-    throw err;
   }
+
+  // Cleanup files
+  try {
+    if (fs.existsSync(savePath)) {
+      fs.readdirSync(savePath).forEach((f) =>
+        fs.unlinkSync(`${savePath}/${f}`)
+      );
+      fs.rmdirSync(savePath);
+    }
+  } catch {}
+
+  if (base64Images.length === 0) {
+    console.warn("No images were generated from the PDF.");
+  }
+
+  return base64Images;
 }
