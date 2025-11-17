@@ -4,8 +4,8 @@ import crypto from "crypto";
 import { supabase } from "../utils/supabaseClient.js";
 import { openai } from "../utils/openaiClient.js";
 import { getRandomColor } from "../utils/helpers.js";
-import { PDFParse } from "pdf-parse";
 import { convertPdfToImages } from "../utils/pdfToImages.js";
+import pdfExtract from "pdf-extraction";
 
 const router = express.Router();
 
@@ -74,11 +74,16 @@ router.post("/upload-note", async (req, res) => {
       data: { publicUrl },
     } = supabase.storage.from("notes").getPublicUrl(fileData.path);
 
-    // Parse PDF text
-    const parser = new PDFParse({ data: fileBuffer });
-    let pdfText = await parser.getText();
+    let extracted;
+    try {
+      extracted = await pdfExtract(fileBuffer);
+    } catch (err) {
+      console.error("PDF Extraction failed:", err);
+      extracted = { text: "" };
+    }
 
-    console.log("the textss", pdfText);
+    let pdfText = extracted.text || "";
+    console.log("PDF TEXT:", pdfText);
 
     if (!pdfText || pdfText.total < 30) {
       console.log("PDF seems scanned → Performing OCR with GPT-5-mini");
