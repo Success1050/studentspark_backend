@@ -1,51 +1,68 @@
-// import fs from "fs";
-// import os from "os";
-// import pdf from "pdf-poppler";
+import fs from "fs";
+import os from "os";
+import { fromBuffer } from "pdf2pic";
 
-// export async function convertPdfToImages(pdfBuffer) {
-//   const tmpDir = os.tmpdir();
-//   const timestamp = Date.now();
+export async function convertPdfToImages(pdfBuffer) {
+  const tmpDir = os.tmpdir();
+  const timestamp = Date.now();
+  const outPrefix = `output_${timestamp}`;
+  const savePath = `${tmpDir}/${outPrefix}`;
 
-//   const tempPdfPath = `${tmpDir}/input_${timestamp}.pdf`;
-//   const outPrefix = `output_${timestamp}`;
+  // Create output directory
+  if (!fs.existsSync(savePath)) {
+    fs.mkdirSync(savePath, { recursive: true });
+  }
 
-//   // 1. Write PDF buffer → temp file
-//   fs.writeFileSync(tempPdfPath, pdfBuffer);
+  const options = {
+    density: 100, // DPI (higher = better quality but larger files)
+    saveFilename: "page", // prefix for output files
+    savePath: savePath, // directory to save images
+    format: "jpg", // output format
+    width: 2000, // optional: max width
+    height: 2000, // optional: max height
+  };
 
-//   const options = {
-//     format: "jpeg",
-//     out_dir: tmpDir,
-//     out_prefix: outPrefix,
-//     page: null, // convert all pages
-//     poppler_path: "/usr/bin",
-//   };
+  try {
+    // 1. Convert PDF buffer to images
+    const convert = fromBuffer(pdfBuffer, options);
 
-//   try {
-//     // 2. Convert PDF → Images
-//     await pdf.convert(tempPdfPath, options);
+    // 2. Get PDF info to know how many pages
+    const storeAsImage = convert.bulk(-1, { responseType: "base64" });
+    const results = await storeAsImage;
 
-//     // 3. Read all generated image files
-//     const allFiles = fs.readdirSync(tmpDir);
-//     const outputFiles = allFiles.filter(
-//       (f) => f.startsWith(outPrefix) && f.endsWith(".jpg")
-//     );
+    // 3. Extract base64 data from results
+    const base64Images = results.map((result) => {
+      return result.base64;
+    });
 
-//     const base64Images = outputFiles.map((filename) => {
-//       const filePath = `${tmpDir}/${filename}`;
-//       const data = fs.readFileSync(filePath).toString("base64");
+    // 4. Cleanup: Delete generated files
+    try {
+      const files = fs.readdirSync(savePath);
+      files.forEach((file) => {
+        fs.unlinkSync(`${savePath}/${file}`);
+      });
+      fs.rmdirSync(savePath);
+    } catch (cleanupErr) {
+      console.warn("Cleanup warning:", cleanupErr.message);
+    }
 
-//       // delete image file
-//       fs.unlinkSync(filePath);
+    return base64Images;
+  } catch (err) {
+    console.error("PDF conversion failed:", err);
 
-//       return data;
-//     });
+    // Cleanup on error
+    try {
+      if (fs.existsSync(savePath)) {
+        const files = fs.readdirSync(savePath);
+        files.forEach((file) => {
+          fs.unlinkSync(`${savePath}/${file}`);
+        });
+        fs.rmdirSync(savePath);
+      }
+    } catch (cleanupErr) {
+      console.warn("Cleanup error:", cleanupErr.message);
+    }
 
-//     // delete temp PDF file
-//     fs.unlinkSync(tempPdfPath);
-
-//     return base64Images;
-//   } catch (err) {
-//     console.error("PDF conversion failed:", err);
-//     throw err;
-//   }
-// }
+    throw err;
+  }
+}

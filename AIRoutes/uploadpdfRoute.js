@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { supabase } from "../utils/supabaseClient.js";
 import { openai } from "../utils/openaiClient.js";
 import { getRandomColor } from "../utils/helpers.js";
-// import { convertPdfToImages } from "../utils/pdfToImages.js";
+import { convertPdfToImages } from "../utils/pdfToImages.js";
 import pdfExtract from "pdf-extraction";
 
 const router = express.Router();
@@ -88,32 +88,32 @@ router.post("/upload-note", async (req, res) => {
     if (!pdfText || pdfText.total < 30) {
       console.log("PDF seems scanned → Performing OCR with GPT-5-mini");
 
-      // const images = await convertPdfToImages(fileBuffer);
+      const images = await convertPdfToImages(fileBuffer);
       const urls = [];
-      // for (let i = 0; i < images.length; i++) {
-      //   const fileName = `ocr_img_${Date.now()}_${i}.jpg`;
-      //   const { data: imageData, error } = await supabase.storage
-      //     .from("temp")
-      //     .upload(fileName, Buffer.from(images[i], "base64"), {
-      //       contentType: "image/jpeg",
-      //     });
+      for (let i = 0; i < images.length; i++) {
+        const fileName = `ocr_img_${Date.now()}_${i}.jpg`;
+        const { data: imageData, error } = await supabase.storage
+          .from("temp")
+          .upload(fileName, Buffer.from(images[i], "base64"), {
+            contentType: "image/jpeg",
+          });
 
-      //   if (error) {
-      //     console.error("Supabase upload error:", error);
-      //     throw new Error(`Failed to upload image ${fileName}`);
-      //   }
+        if (error) {
+          console.error("Supabase upload error:", error);
+          throw new Error(`Failed to upload image ${fileName}`);
+        }
 
-      //   const {
-      //     data: { publicUrl },
-      //   } = supabase.storage.from("temp").getPublicUrl(imageData.path);
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("temp").getPublicUrl(imageData.path);
 
-      //   // ✅ Ensure URL is valid
-      //   if (!publicUrl) {
-      //     throw new Error(`Supabase returned null URL for ${fileName}`);
-      //   }
+        // ✅ Ensure URL is valid
+        if (!publicUrl) {
+          throw new Error(`Supabase returned null URL for ${fileName}`);
+        }
 
-      //   urls.push(publicUrl);
-      // }
+        urls.push(publicUrl);
+      }
 
       console.log("images gotten", urls);
 
