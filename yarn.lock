@@ -968,11 +968,6 @@ pdf-parse@^2.4.5:
     "@napi-rs/canvas" "0.1.80"
     pdfjs-dist "5.4.296"
 
-pdf-poppler@^0.2.3:
-  version "0.2.3"
-  resolved "https://registry.npmjs.org/pdf-poppler/-/pdf-poppler-0.2.3.tgz"
-  integrity sha512-nUczP3M/W4c8/3F6il0LmkxkF33qTKQyxeBmUnPbQLxxhtBX42zfpZqnLysomvMdb756qVR7n5kvNr+LzisXQw==
-
 pdfjs-dist@^5.4.394:
   version "5.4.394"
   resolved "https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-5.4.394.tgz"
