@@ -85,7 +85,22 @@ router.post("/upload-note", async (req, res) => {
     let pdfText = extracted.text || "";
     console.log("PDF TEXT:", pdfText);
 
-    if (!pdfText || pdfText.total < 30) {
+    const cleanText = pdfText
+      .replace(/--\s*\d+\s*of\s*\d+\s*--/g, "")
+      .replace(/CamScanner/gi, "")
+      .replace(/\n/g, "")
+      .trim();
+
+    const hasNoText = !pdfText.text || cleanText.length < 50;
+
+    console.log(
+      "Original text length:",
+      pdfText.text ? pdfText.text.length : 0
+    );
+    console.log("Clean text length:", cleanText.length);
+    console.log("Has no meaningful text:", hasNoText);
+
+    if (hasNoText) {
       console.log("PDF seems scanned → Performing OCR with GPT-5-mini");
 
       const images = await convertPdfToImages(fileBuffer);

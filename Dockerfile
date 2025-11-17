@@ -1,7 +1,9 @@
 FROM node:18-slim
 
-# Install Poppler and required dependencies
+# Install pdf2pic dependencies (GraphicsMagick + Ghostscript) and Poppler
 RUN apt-get update && apt-get install -y \
+    ghostscript \
+    graphicsmagick \
     poppler-utils \
     poppler-data \
     --no-install-recommends \
@@ -19,8 +21,8 @@ RUN npm install
 # Copy application code
 COPY . .
 
-# Verify Poppler installation
-RUN pdftoppm -v
+# Verify installations
+RUN pdftoppm -v && gm version && gs --version
 
 EXPOSE 3000
 
