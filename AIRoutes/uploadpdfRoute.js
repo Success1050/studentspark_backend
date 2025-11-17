@@ -116,7 +116,7 @@ router.post("/upload-note", async (req, res) => {
       const urls = [];
 
       for (let i = 0; i < images.length; i++) {
-        const imgName = `ocr_img_${Date.now()}_${i}.jpg`;
+        const imgName = `ocr_img_${Date.now()}_${i}.jpeg`;
         const compressed = compressImage(images[i]);
 
         const { data: imageData, error: uploadErr } = await supabase.storage
