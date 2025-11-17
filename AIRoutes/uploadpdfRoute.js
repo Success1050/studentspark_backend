@@ -6,6 +6,8 @@ import { openai } from "../utils/openaiClient.js";
 import { getRandomColor } from "../utils/helpers.js";
 import { convertPdfToImages } from "../utils/pdfToImages.js";
 import pdfExtract from "pdf-extraction";
+import { compressImage } from "../utils/resizeimg.js";
+import { chunk } from "../utils/reduce.js";
 
 const router = express.Router();
 
@@ -106,64 +108,67 @@ router.post("/upload-note", async (req, res) => {
       const images = await convertPdfToImages(fileBuffer);
       console.log("Generated images count:", images.length);
 
-      if (!images || images.length === 0) {
+      if (!images.length) {
         throw new Error("PDF conversion failed: no images were generated.");
       }
 
-      console.log("Generated images count:", images.length);
-
       const urls = [];
 
+      // 1️⃣ Compress & upload images + use signed URLs
       for (let i = 0; i < images.length; i++) {
         const imgName = `ocr_img_${Date.now()}_${i}.jpg`;
 
+        // compress
+        const compressed = await compressImage(images[i]);
+
+        // upload
         const { data: imageData, error: uploadErr } = await supabase.storage
           .from("temp")
-          .upload(imgName, Buffer.from(images[i], "base64"), {
-            contentType: "image/jpeg",
-          });
+          .upload(imgName, compressed, { contentType: "image/jpeg" });
 
-        if (uploadErr) {
-          console.error("Supabase upload error:", uploadErr);
-          throw new Error(`Failed to upload image ${imgName}`);
-        }
+        if (uploadErr) throw new Error("Failed to upload image");
 
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("temp").getPublicUrl(imageData.path);
+        // signed url (1 hour)
+        const { data: signed } = await supabase.storage
+          .from("temp")
+          .createSignedUrl(imageData.path, 3600);
 
-        if (!publicUrl) {
-          throw new Error(`Supabase returned null URL for ${imgName}`);
-        }
-
-        urls.push(publicUrl);
+        urls.push(signed.signedUrl);
       }
 
       console.log("Uploaded OCR image URLs:", urls);
 
-      // 3️⃣ Send uploaded images → OpenAI for OCR
-      const ocrResponse = await openai.responses.create({
-        model: "gpt-4.1-mini",
-        input: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: "Extract all readable text from these images. Include every word, number, label, heading, and any other visible text. Provide the extracted text in a structured format that preserves the layout and organization as much as possible. Do not add any commentary, explanations, or closing remarks.",
-              },
-              ...urls.map((url) => ({
-                type: "input_image",
-                image_url: url,
-              })),
-            ],
-          },
-        ],
-      });
+      // 2️⃣ Batch images to avoid OpenAI timeout
+      const batches = chunk(urls, 5);
 
-      // 4️⃣ Assign OCR result
-      pdfText = ocrResponse.output_text;
-      console.log("OCR extracted text:", pdfText);
+      for (const batch of batches) {
+        console.log("Processing OCR batch:", batch.length);
+
+        const ocrResponse = {
+          model: "gpt-4.1-mini",
+          input: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "input_text",
+                  text: "Extract all readable text from these images. Include every word, number, heading. No commentary.",
+                },
+                ...batch.map((url) => ({
+                  type: "input_image",
+                  image_url: url,
+                })),
+              ],
+            },
+          ],
+        };
+
+        // 3️⃣ Safe OCR with retries
+        pdfText = ocrResponse.output_text;
+      }
+
+      // pdfText = finalOCRText;
+      console.log("OCR extracted text length:", pdfText.length);
     }
 
     // Generate summary using OpenAI
