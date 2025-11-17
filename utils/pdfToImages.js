@@ -1,19 +1,51 @@
-import { fromBuffer } from "pdf2pic";
+import fs from "fs";
+import path from "path";
+import os from "os";
+import { promisify } from "util";
+import pdfPoppler from "pdf-poppler";
+
+const unlink = promisify(fs.unlink);
 
 export async function convertPdfToImages(pdfBuffer) {
+  const tmpDir = os.tmpdir(); // Cross-platform temp directory
+  const timestamp = Date.now();
+
+  const tempInput = path.join(tmpDir, `input_${timestamp}.pdf`);
+  const tempOutputPrefix = `output_${timestamp}`;
+
+  // Save buffer → temp file
+  fs.writeFileSync(tempInput, pdfBuffer);
+
   const options = {
-    density: 150,
     format: "jpeg",
-    quality: 80,
+    out_dir: tmpDir,
+    out_prefix: tempOutputPrefix,
+    page: null, // all pages
   };
 
-  const converter = fromBuffer(pdfBuffer, options);
+  // Convert PDF → images
+  await pdfPoppler.convert(tempInput, options);
 
-  const pages = await converter.bulk(-1); // convert all pages
+  // Read all generated JPEG files
+  const files = fs
+    .readdirSync(tmpDir)
+    .filter(
+      (file) => file.startsWith(tempOutputPrefix) && file.endsWith(".jpg")
+    );
 
-  const base64Images = pages.map((page) => {
-    return page.base64; // already base64
+  // Convert each image → base64
+  const base64Images = files.map((file) => {
+    const imgPath = path.join(tmpDir, file);
+    const data = fs.readFileSync(imgPath).toString("base64");
+
+    // Cleanup each file
+    unlink(imgPath).catch(() => {});
+
+    return data;
   });
+
+  // Cleanup input PDF
+  unlink(tempInput).catch(() => {});
 
   return base64Images;
 }
