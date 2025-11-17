@@ -17,6 +17,7 @@ export async function convertPdfToImages(pdfBuffer) {
     out_dir: tmpDir,
     out_prefix: outPrefix,
     page: null, // convert all pages
+    poppler_path: "/usr/bin",
   };
 
   try {
