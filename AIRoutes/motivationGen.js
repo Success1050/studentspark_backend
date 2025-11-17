@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { supabase } from "../utils/supabaseClient.js";
 import { openai } from "../utils/openaiClient.js";
 import { getRandomColor } from "../utils/helpers.js";
-import { PDFParse } from "pdf-parse";
+// import { PDFParse } from "pdf-parse";
 
 const router = express.Router();
 

@@ -4,9 +4,15 @@ import crypto from "crypto";
 import { supabase } from "../utils/supabaseClient.js";
 import { openai } from "../utils/openaiClient.js";
 import { getRandomColor } from "../utils/helpers.js";
-import { PDFParse } from "pdf-parse";
+// import { PDFParse } from "pdf-parse";
 
 const router = express.Router();
+
+const PLAN_LIMITS = {
+  free: 2,
+  premium: 5,
+  pro: Infinity,
+};
 
 router.post("/upload-past-question", async (req, res) => {
   try {
@@ -45,8 +51,8 @@ router.post("/upload-past-question", async (req, res) => {
     console.log("📖 Parsing PDF text...");
 
     // Parse PDF text
-    const parser = new PDFParse({ data: fileBuffer });
-    const pqtexts = await parser.getText();
+    // const parser = new PDFParse({ data: fileBuffer });
+    const pqtexts = "hdhdhdhdh";
 
     console.log("📝 Extracted text length:", pqtexts.text.length);
 
