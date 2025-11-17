@@ -6,6 +6,7 @@ import { openai } from "../utils/openaiClient.js";
 import { getRandomColor } from "../utils/helpers.js";
 import { convertPdfToImages } from "../utils/pdfToImages.js";
 import pdfExtract from "pdf-extraction";
+import { compressImage } from "../utils/resizeimg.js";
 
 const router = express.Router();
 
@@ -116,12 +117,11 @@ router.post("/upload-note", async (req, res) => {
 
       for (let i = 0; i < images.length; i++) {
         const imgName = `ocr_img_${Date.now()}_${i}.jpg`;
+        const compressed = compressImage(images[i]);
 
         const { data: imageData, error: uploadErr } = await supabase.storage
           .from("temp")
-          .upload(imgName, Buffer.from(images[i], "base64"), {
-            contentType: "image/jpeg",
-          });
+          .upload(imgName, compressed, { contentType: "image/jpeg" });
 
         if (uploadErr) {
           console.error("Supabase upload error:", uploadErr);
