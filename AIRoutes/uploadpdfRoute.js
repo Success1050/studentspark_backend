@@ -104,6 +104,9 @@ router.post("/upload-note", async (req, res) => {
       console.log("PDF seems scanned → Performing OCR with GPT-5-mini");
 
       const images = await convertPdfToImages(fileBuffer);
+
+      console.log("the images for gbu", images);
+
       const urls = [];
       for (let i = 0; i < images.length; i++) {
         const fileName = `ocr_img_${Date.now()}_${i}.jpg`;
