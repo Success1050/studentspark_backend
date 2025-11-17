@@ -12,6 +12,7 @@
   "type": "module",
   "dependencies": {
     "@supabase/supabase-js": "^2.80.0",
+    "canvas": "^3.2.0",
     "cors": "^2.8.5",
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
