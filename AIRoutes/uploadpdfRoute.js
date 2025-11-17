@@ -103,7 +103,6 @@ router.post("/upload-note", async (req, res) => {
     if (hasNoText) {
       console.log("PDF seems scanned → Performing OCR with GPT-5-mini");
 
-      // 1️⃣ Convert PDF → images
       const images = await convertPdfToImages(fileBuffer);
 
       if (!images || images.length === 0) {
@@ -112,21 +111,20 @@ router.post("/upload-note", async (req, res) => {
 
       console.log("Generated images count:", images.length);
 
-      // 2️⃣ Upload each image to Supabase and collect public URLs
       const urls = [];
 
       for (let i = 0; i < images.length; i++) {
-        const fileName = `ocr_img_${Date.now()}_${i}.jpg`;
+        const imgName = `ocr_img_${Date.now()}_${i}.jpg`;
 
-        const { data: imageData, error } = await supabase.storage
+        const { data: imageData, error: uploadErr } = await supabase.storage
           .from("temp")
-          .upload(fileName, Buffer.from(images[i], "base64"), {
+          .upload(imgName, Buffer.from(images[i], "base64"), {
             contentType: "image/jpeg",
           });
 
-        if (error) {
-          console.error("Supabase upload error:", error);
-          throw new Error(`Failed to upload image ${fileName}`);
+        if (uploadErr) {
+          console.error("Supabase upload error:", uploadErr);
+          throw new Error(`Failed to upload image ${imgName}`);
         }
 
         const {
@@ -134,15 +132,15 @@ router.post("/upload-note", async (req, res) => {
         } = supabase.storage.from("temp").getPublicUrl(imageData.path);
 
         if (!publicUrl) {
-          throw new Error(`Supabase returned null URL for ${fileName}`);
+          throw new Error(`Supabase returned null URL for ${imgName}`);
         }
 
         urls.push(publicUrl);
       }
 
-      console.log("Uploaded image URLs:", urls);
+      console.log("Uploaded OCR image URLs:", urls);
 
-      // 3️⃣ Send images to OpenAI OCR
+      // 3️⃣ Send uploaded images → OpenAI for OCR
       const ocrResponse = await openai.responses.create({
         model: "gpt-4.1-mini",
         input: [
@@ -151,7 +149,7 @@ router.post("/upload-note", async (req, res) => {
             content: [
               {
                 type: "input_text",
-                text: "Extract all readable text from these images. Include every word, number, label, heading, and any other visible text. Provide the extracted text in a structured format that preserves the layout and organization as much as possible. Do not add any commentary, explanations, or closing remarks - only output the extracted text content.",
+                text: "Extract all readable text from these images. Include every word, number, label, heading, and any other visible text. Provide the extracted text in a structured format that preserves the layout and organization as much as possible. Do not add any commentary, explanations, or closing remarks.",
               },
               ...urls.map((url) => ({
                 type: "input_image",
@@ -162,9 +160,8 @@ router.post("/upload-note", async (req, res) => {
         ],
       });
 
-      // 4️⃣ Assign OCR result to pdfText
+      // 4️⃣ Assign OCR result
       pdfText = ocrResponse.output_text;
-
       console.log("OCR extracted text:", pdfText);
     }
 
