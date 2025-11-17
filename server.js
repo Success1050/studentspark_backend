@@ -1,15 +1,3 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import { uploadNoteRoute } from "./AIRoutes/uploadpdfRoute.js";
-import { summarizeNoteRoute } from "./AIRoutes/studyPlanRoute.js";
-import { generatePracticeQuestionsRoute } from "./AIRoutes/uploadnotesforpqprediction.js";
-import { generatequiz } from "./AIRoutes/uploadNotesForQuizGeneration.js";
-import { motivationGen } from "./AIRoutes/motivationGen.js";
-import { paystackPayment } from "./AIRoutes/paystackRoute.js";
-
-// import { createCanvas } from "canvas";
-
 global.DOMMatrix = class DOMMatrix {
   constructor(init) {
     this.a = 1;
@@ -48,6 +36,18 @@ global.DOMMatrix = class DOMMatrix {
     return this;
   }
 };
+
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import { uploadNoteRoute } from "./AIRoutes/uploadpdfRoute.js";
+import { summarizeNoteRoute } from "./AIRoutes/studyPlanRoute.js";
+import { generatePracticeQuestionsRoute } from "./AIRoutes/uploadnotesforpqprediction.js";
+import { generatequiz } from "./AIRoutes/uploadNotesForQuizGeneration.js";
+import { motivationGen } from "./AIRoutes/motivationGen.js";
+import { paystackPayment } from "./AIRoutes/paystackRoute.js";
+
+// import { createCanvas } from "canvas";
 
 dotenv.config();
 
