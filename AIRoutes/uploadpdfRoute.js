@@ -5,7 +5,7 @@ import { supabase } from "../utils/supabaseClient.js";
 import { openai } from "../utils/openaiClient.js";
 import { getRandomColor } from "../utils/helpers.js";
 import { PDFParse } from "pdf-parse";
-import { convertPdfToImages } from "../utils/pdfToImages.js";
+// import { convertPdfToImages } from "../utils/pdfToImages.js";
 
 const router = express.Router();
 
@@ -80,62 +80,62 @@ router.post("/upload-note", async (req, res) => {
 
     console.log("the textss", pdfText);
 
-    if (!pdfText || pdfText.total < 30) {
-      console.log("PDF seems scanned → Performing OCR with GPT-5-mini");
+    // if (!pdfText || pdfText.total < 30) {
+    //   console.log("PDF seems scanned → Performing OCR with GPT-5-mini");
 
-      const images = await convertPdfToImages(fileBuffer); // base64 or temp files
-      const urls = [];
-      for (let i = 0; i < images.length; i++) {
-        const fileName = `ocr_img_${Date.now()}_${i}.jpg`;
-        const { data: imageData, error } = await supabase.storage
-          .from("temp")
-          .upload(fileName, Buffer.from(images[i], "base64"), {
-            contentType: "image/jpeg",
-          });
+    //   const images = await convertPdfToImages(fileBuffer); // base64 or temp files
+    //   const urls = [];
+    //   for (let i = 0; i < images.length; i++) {
+    //     const fileName = `ocr_img_${Date.now()}_${i}.jpg`;
+    //     const { data: imageData, error } = await supabase.storage
+    //       .from("temp")
+    //       .upload(fileName, Buffer.from(images[i], "base64"), {
+    //         contentType: "image/jpeg",
+    //       });
 
-        if (error) {
-          console.error("Supabase upload error:", error);
-          throw new Error(`Failed to upload image ${fileName}`);
-        }
+    //     if (error) {
+    //       console.error("Supabase upload error:", error);
+    //       throw new Error(`Failed to upload image ${fileName}`);
+    //     }
 
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("temp").getPublicUrl(imageData.path);
+    //     const {
+    //       data: { publicUrl },
+    //     } = supabase.storage.from("temp").getPublicUrl(imageData.path);
 
-        // ✅ Ensure URL is valid
-        if (!publicUrl) {
-          throw new Error(`Supabase returned null URL for ${fileName}`);
-        }
+    //     // ✅ Ensure URL is valid
+    //     if (!publicUrl) {
+    //       throw new Error(`Supabase returned null URL for ${fileName}`);
+    //     }
 
-        urls.push(publicUrl);
-      }
+    //     urls.push(publicUrl);
+    //   }
 
-      console.log("images gotten", urls);
+    //   console.log("images gotten", urls);
 
-      const ocrResponse = await openai.responses.create({
-        model: "gpt-4.1-mini",
-        input: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: "Extract all readable text from these images. Include every word, number, label, heading, and any other visible text. Provide the extracted text in a structured format that preserves the layout and organization as much as possible. Do not add any commentary, explanations, or closing remarks - only output the extracted text content.",
-              },
-              ...urls.map((url) => ({
-                type: "input_image",
-                image_url: url,
-              })),
-            ],
-          },
-        ],
-      });
+    //   const ocrResponse = await openai.responses.create({
+    //     model: "gpt-4.1-mini",
+    //     input: [
+    //       {
+    //         role: "user",
+    //         content: [
+    //           {
+    //             type: "input_text",
+    //             text: "Extract all readable text from these images. Include every word, number, label, heading, and any other visible text. Provide the extracted text in a structured format that preserves the layout and organization as much as possible. Do not add any commentary, explanations, or closing remarks - only output the extracted text content.",
+    //           },
+    //           ...urls.map((url) => ({
+    //             type: "input_image",
+    //             file: url,
+    //           })),
+    //         ],
+    //       },
+    //     ],
+    //   });
 
-      // 4️⃣ Return OCR text
-      console.log("shout gbu", ocrResponse.output_text);
+    //   // 4️⃣ Return OCR text
+    //   console.log("shout gbu", ocrResponse.output_text);
 
-      pdfText = ocrResponse.output_text;
-    }
+    //   pdfText = ocrResponse.output_text;
+    // }
 
     // Generate summary using OpenAI
     const completion = await openai.chat.completions.create({
