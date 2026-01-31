@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import { uploadNoteRoute } from "./AIRoutes/uploadpdfRoute.js";
 import { summarizeNoteRoute } from "./AIRoutes/studyPlanRoute.js";
@@ -8,13 +9,20 @@ import { generatequiz } from "./AIRoutes/uploadNotesForQuizGeneration.js";
 import { motivationGen } from "./AIRoutes/motivationGen.js";
 import { paystackPayment } from "./AIRoutes/paystackRoute.js";
 
-// import { createCanvas } from "canvas";
-
 dotenv.config();
 
 const app = express();
 app.use(express.json({ limit: "400mb" }));
 app.use(cors());
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: true, // Return the `X-RateLimit-*` headers
+});
+
+app.use(limiter);
 
 // Mount all AI routes under a prefix (optional)
 app.use("/api", uploadNoteRoute);

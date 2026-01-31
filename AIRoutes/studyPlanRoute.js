@@ -1,42 +1,3 @@
-global.DOMMatrix = class DOMMatrix {
-  constructor(init) {
-    this.a = 1;
-    this.b = 0;
-    this.c = 0;
-    this.d = 1;
-    this.e = 0;
-    this.f = 0;
-    this.m11 = 1;
-    this.m12 = 0;
-    this.m13 = 0;
-    this.m14 = 0;
-    this.m21 = 0;
-    this.m22 = 1;
-    this.m23 = 0;
-    this.m24 = 0;
-    this.m31 = 0;
-    this.m32 = 0;
-    this.m33 = 1;
-    this.m34 = 0;
-    this.m41 = 0;
-    this.m42 = 0;
-    this.m43 = 0;
-    this.m44 = 1;
-  }
-  translate(x, y, z) {
-    return this;
-  }
-  scale(x, y, z) {
-    return this;
-  }
-  rotate(angle) {
-    return this;
-  }
-  multiply(other) {
-    return this;
-  }
-};
-
 import express from "express";
 import { supabase } from "../utils/supabaseClient.js";
 import { openai } from "../utils/openaiClient.js";
@@ -161,6 +122,23 @@ ${formattedTopics || "No topics available"}
       }
     }
 
+    const lagosTime = new Date().toLocaleString("en-US", {
+      timeZone: "Africa/Lagos",
+      hour12: true,
+      hour: "2-digit",
+      minute: "2-digit",
+      weekday: "long",
+    });
+
+    const currentLagosDate = new Date().toLocaleDateString("en-GB", {
+      timeZone: "Africa/Lagos",
+    });
+
+    console.log("🕒 Current Lagos time:", lagosTime);
+    console.log("📅 Current Lagos date:", currentLagosDate);
+
+    console.log("🤖 Calling OpenAI...");
+
     console.log("the note summary", noteSummaries);
 
     console.log("🤖 Calling OpenAI...");
@@ -190,6 +168,16 @@ STUDY SESSION STRUCTURE:
 - Afternoon sessions: Moderate difficulty subjects
 - Evening sessions: Review, practice problems, or lighter topics
 
+⏰ CRITICAL TIME SCHEDULING RULES:
+1. **Use West Africa Time (WAT) timezone for all scheduling**
+2. **FOR TODAY'S TASKS ONLY**: Start scheduling AFTER the current time provided
+   - If current time is 11:30 PM, don't schedule anything for today
+   - If current time is 2:00 PM, start today's tasks from 2:30 PM or later
+   - If current time is 9:00 AM, you can schedule from 9:30 AM onwards
+3. **FOR FUTURE DAYS**: Schedule normally starting from reasonable morning hours (7:00 AM - 9:00 AM)
+4. **Latest study time**: Don't schedule tasks past 11:00 PM
+5. **If it's too late today** (after 9:00 PM): Skip scheduling tasks for today and start from tomorrow
+
 TASK NAMING BEST PRACTICES:
 - Be specific and actionable: "Solve 20 quadratic equation problems" not just "Quadratic Equations"
 - Include the learning method: "Watch + Notes:", "Practice:", "Review:", "Mock Test:"
@@ -212,7 +200,8 @@ Return ONLY valid JSON with this exact structure:
     "exam_date": "DD/MM/YYYY",
     "total_study_hours": number,
     "subjects_count": number,
-    "study_strategy": "Brief description of the overall approach taken"
+    "study_strategy": "Brief description of the overall approach taken",
+    "timezone": "Africa/Lagos (WAT)"
   },
   "days": [
     {
@@ -229,7 +218,7 @@ Return ONLY valid JSON with this exact structure:
           "subject": "use the course_code or title from the input..which ever one that is provided",
           "topic": "Specific, actionable task description",
           "duration_minutes": number,
-          "suggested_time": "HH:MM AM/PM",
+          "suggested_time": "HH:MM AM/PM (WAT)",
           "difficulty_level": "Easy|Medium|Hard",
           "learning_method": "Video|Reading|Practice|Review|Mock Test",
           "priority": "High|Medium|Low",
@@ -266,6 +255,7 @@ RULES:
 4. If "includeBreaks" is true, add break reminders
 5. Distribute daily hours according to specified range
 6. Generate unique task IDs: "day{day_number}_task{task_number}"
+7. **RESPECT THE CURRENT TIME**: For today's date, schedule tasks AFTER current time only
 
 Return ONLY the JSON object. No markdown formatting.`,
         },
@@ -274,12 +264,17 @@ Return ONLY the JSON object. No markdown formatting.`,
           content: `
 Create a personalized study plan with the following specifications:
 
+⏰ CURRENT TIME & DATE (West Africa Time - Lagos):
+- Current Date: ${currentLagosDate}
+- Current Time: ${lagosTime}
+- **IMPORTANT**: For tasks scheduled TODAY (${currentLagosDate}), start AFTER ${lagosTime}. If it's late (after 9 PM), skip today and start tomorrow.
+
 STUDENT INPUTS:
 - Exam Date: ${examDate}
 - Plan Duration: ${duration} days
 - Selected Subjects: ${subjects.join(", ")}
 - Daily Study Hours: ${studyHours} hours
-- Current Date (Start Date): ${new Date().toLocaleDateString("en-GB")}
+- Current Date (Start Date): ${currentLagosDate}
 
 AI CUSTOMIZATION OPTIONS:
 - Include Revision Days: ${aiOptions.includeRevision ? "YES" : "NO"}
@@ -292,9 +287,8 @@ Use the "subject" key in your output to reflect the subject (course_code/title) 
 Use these to create a structured study plan where each task is grouped under its subject:
 ${noteSummaries}
 
-
-
-Generate an optimal, CONCISE study plan. Keep it actionable and focused!`,
+Generate an optimal, CONCISE study plan. Keep it actionable and focused!
+Remember: Schedule today's tasks AFTER the current time (${lagosTime}) in West Africa Time!`,
         },
       ],
     });

@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { supabase } from "../utils/supabaseClient.js";
 import { openai } from "../utils/openaiClient.js";
 import { getRandomColor } from "../utils/helpers.js";
-// import { PDFParse } from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 
 const router = express.Router();
 
@@ -50,8 +50,8 @@ router.post("/upload-past-question", async (req, res) => {
 
     console.log("📖 Parsing PDF text...");
 
-    // Parse PDF text
-    // const parser = new PDFParse({ data: fileBuffer });
+   const parser = new PDFParse({ data: fileBuffer });
+   let pdfText = await parser.getText();
     const pqtexts = "hdhdhdhdh";
 
     console.log("📝 Extracted text length:", pqtexts.text.length);
