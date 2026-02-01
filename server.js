@@ -32,6 +32,35 @@ app.use("/api", generatequiz);
 app.use("/api", motivationGen);
 app.use("/api", paystackPayment);
 
+// Supabase client with SERVICE ROLE
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+app.delete("/delete-account/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    // 1. Delete related data first
+    await supabaseAdmin
+      .from("profiles")
+      .delete()
+      .eq("user_id", userId);
+
+    // 2. Delete auth user
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+
+    if (error) throw error;
+
+    res.json({ message: "Account deleted successfully" });
+
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+
 // app.use("/api", explainTopicRoute);
 
 const PORT = process.env.PORT || 3000;
