@@ -34,12 +34,26 @@ app.use("/api", motivationGen);
 app.use("/api", paystackPayment);
 
 // Supabase client with SERVICE ROLE
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Supabase client with SERVICE ROLE
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL;
+
+let supabaseAdmin;
+
+if (serviceRoleKey && supabaseUrl) {
+  supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+} else {
+  console.warn(
+    "⚠️ SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL is missing. Admin routes will fail."
+  );
+}
 
 app.delete("/delete-account/:userId", async (req, res) => {
+  if (!supabaseAdmin) {
+    return res.status(500).json({
+      error: "Server configuration error: Missing Supabase Service Role Key",
+    });
+  }
 
   const token = req.headers.authorization?.split(" ")[1];
 
@@ -51,14 +65,10 @@ app.delete("/delete-account/:userId", async (req, res) => {
   if (error || !user) {
     return res.status(401).json({ error: "Unauthorized" });
   }
-  const { userId } = req.params;
-
+  const userId = user.id;
   try {
     // 1. Delete related data first
-    await supabaseAdmin
-      .from("profiles")
-      .delete()
-      .eq("user_id", userId);
+    await supabaseAdmin.from("profiles").delete().eq("user_id", userId);
 
     // 2. Delete auth user
     const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
@@ -66,7 +76,6 @@ app.delete("/delete-account/:userId", async (req, res) => {
     if (error) throw error;
 
     res.json({ message: "Account deleted successfully" });
-
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
