@@ -8,6 +8,7 @@ import { generatePracticeQuestionsRoute } from "./AIRoutes/uploadnotesforpqpredi
 import { generatequiz } from "./AIRoutes/uploadNotesForQuizGeneration.js";
 import { motivationGen } from "./AIRoutes/motivationGen.js";
 import { paystackPayment } from "./AIRoutes/paystackRoute.js";
+import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
@@ -39,6 +40,17 @@ const supabaseAdmin = createClient(
 );
 
 app.delete("/delete-account/:userId", async (req, res) => {
+
+  const token = req.headers.authorization?.split(" ")[1];
+
+  const {
+    data: { user },
+    error,
+  } = await supabaseAdmin.auth.getUser(token);
+
+  if (error || !user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
   const { userId } = req.params;
 
   try {
