@@ -48,7 +48,7 @@ if (serviceRoleKey && supabaseUrl) {
   );
 }
 
-app.delete("/delete-account/:userId", async (req, res) => {
+app.delete("/delete-account", async (req, res) => {
   if (!supabaseAdmin) {
     return res.status(500).json({
       error: "Server configuration error: Missing Supabase Service Role Key",
