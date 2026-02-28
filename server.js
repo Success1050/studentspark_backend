@@ -13,7 +13,7 @@ import { createClient } from "@supabase/supabase-js";
 dotenv.config();
 
 const app = express();
-app.use(express.json({ limit: "400mb" }));
+app.use(express.json({ limit: "100mb" }));
 app.use(cors());
 
 const limiter = rateLimit({
