@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { supabase } from "../utils/supabaseClient.js";
 import { openai } from "../utils/openaiClient.js";
 import { getRandomColor } from "../utils/helpers.js";
-import { PDFParse } from "pdf-parse";
+import pdfExtract from "pdf-extraction";
 
 const router = express.Router();
 
@@ -15,6 +15,9 @@ const PLAN_LIMITS = {
 };
 
 router.post("/upload-past-question", async (req, res) => {
+  let uploadedFilePath = null;
+  let createdPqId = null;
+
   try {
     const { title, userId, file } = req.body;
 
@@ -42,6 +45,8 @@ router.post("/upload-past-question", async (req, res) => {
       throw uploadError;
     }
 
+    uploadedFilePath = fileData.path;
+
     console.log("✅ File uploaded successfully");
 
     const {
@@ -50,101 +55,135 @@ router.post("/upload-past-question", async (req, res) => {
 
     console.log("📖 Parsing PDF text...");
 
-   const parser = new PDFParse({ data: fileBuffer });
-   let pdfText = await parser.getText();
-    const pqtexts = "hdhdhdhdh";
+    let extracted;
+    try {
+      extracted = await pdfExtract(fileBuffer);
+    } catch (err) {
+      console.error("PDF Extraction failed:", err);
+      extracted = { text: "" };
+    }
 
-    console.log("📝 Extracted text length:", pqtexts.text.length);
+    let pdfText = extracted.text || "";
 
-    if (!pqtexts.text || pqtexts.text.trim().length === 0) {
+    const cleanText = pdfText.replace(/--\s*\d+\s*of\s*\d+\s*--/g, "").replace(/CamScanner/gi, "").replace(/\n/g, "").trim();
+    const hasNoText = !pdfText || cleanText.length < 50;
+
+    if (hasNoText) {
+      console.log("PDF seems scanned → Performing batched OCR with GPT-4o-mini directly (faster)");
+      const { convertPdfToImages } = await import("../utils/pdfToImages.js");
+      const images = await convertPdfToImages(fileBuffer);
+      if (!images || images.length === 0) throw new Error("PDF conversion failed: no images were generated.");
+
+      const batchSize = 5;
+      const ocrTexts = [];
+      for (let i = 0; i < images.length; i += batchSize) {
+        const batch = images.slice(i, i + batchSize);
+        console.log(`🔍 OCR processing pages ${i + 1} to ${Math.min(i + batchSize, images.length)}...`);
+        const ocrResponse = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{
+            role: "user",
+            content: [
+              { type: "text", text: "Extract all readable text from these images. Preserve layout." },
+              ...batch.map(base64 => ({
+                type: "image_url",
+                image_url: { url: `data:image/jpeg;base64,${base64.replace(/^data:image\/\w+;base64,/, "").replace(/\s+/g, "")}` }
+              }))
+            ]
+          }]
+        });
+        ocrTexts.push(ocrResponse.choices[0]?.message?.content || "");
+      }
+      pdfText = ocrTexts.join("\n\n");
+    }
+
+    if (!pdfText || pdfText.trim().length === 0) {
       return res.status(400).json({ error: "Could not extract text from PDF" });
     }
 
     console.log("🤖 Calling OpenAI for analysis...");
 
-    // Generate summary using OpenAI
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `
-You are an AI academic assistant specialized in analyzing past examination papers. Your task is to analyze past question papers and predict likely exam topics based on frequency, emphasis, and patterns.
+    // Generate summary using OpenAI in chunks
+    const maxChars = 30000;
+    const txtChunks = [];
+    for (let i = 0; i < pdfText.length; i += maxChars) {
+      txtChunks.push(pdfText.substring(i, i + maxChars));
+    }
+
+    console.log(`📝 Text split into ${txtChunks.length} chunks to prevent token limits`);
+
+    const partialAnalyses = [];
+
+    for (let i = 0; i < txtChunks.length; i++) {
+      console.log(`🤖 Analyzing chunk ${i + 1}/${txtChunks.length}...`);
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `
+You are an AI academic assistant specialized in analyzing past examination papers. 
+You are analyzing PART ${i + 1} of ${txtChunks.length} from a past question paper.
 
 Instructions:
 1. Extract the **subject/course name** and **year** from the document if available.
 2. Identify **all topics/concepts** covered in the past questions.
-3. For each topic, calculate a **probability score (0-100%)** indicating how likely it is to appear in future exams based on:
-   - Frequency of appearance in the paper
-   - Number of marks allocated to questions on that topic
-   - Emphasis and depth of questions asked
-   - Patterns of repetition across different sections
-4. Sort topics by probability (highest first).
-5. Only include topics with probability >= 50%.
-6. Provide the output strictly in **JSON format** like this:
+3. For each topic, calculate a **probability score (0-100%)** indicating how likely it is to appear in future exams based on frequency and emphasis.
+4. Only include topics with probability >= 50%.
+5. Provide the output strictly in **JSON format** like this:
 
 {
-  "subject": "Subject/Course name or course code extracted from the document",
-  "year": "Exam year (e.g., '2023', '2022/2023')",
+  "subject": "Subject/Course name or course code",
+  "year": "Exam year",
   "topics": [
-    {
-      "name": "Topic name",
-      "probability": 85
-    },
-    {
-      "name": "Another topic",
-      "probability": 72
-    }
+    { "name": "Topic name", "probability": 85 }
   ],
   "analyzed": true
 }
 
-Probability Guidelines:
-- 80-100%: Very High (topic appears frequently with significant marks)
-- 65-79%: High (topic appears multiple times)
-- 50-64%: Moderate (topic appears at least once with decent marks)
+Do not include anything outside the JSON.`,
+          },
+          {
+            role: "user",
+            content: `Here is the past question paper part. Analyze it.\n\nPast Question Paper:\n${txtChunks[i]}`,
+          },
+        ],
+      });
 
-Do not include anything outside the JSON. Be accurate and analytical in your predictions.`,
-        },
-        {
-          role: "user",
-          content: `
-Here is the past question paper content. Analyze it and predict likely topics for future exams.
+      const aiResponse = completion.choices[0].message.content ?? "";
+      let cleaned = aiResponse.replace(/```json/g, "").replace(/```/g, "").trim();
 
-Past Question Paper:
-${pqtexts.text.substring(0, 20000)}
-`,
-        },
-      ],
-    });
-
-    const aiResponse = completion.choices[0].message.content ?? "";
-
-    console.log("🤖 AI Response received:");
-    console.log(aiResponse.substring(0, 500)); // Log first 500 chars
-
-    let cleaned = aiResponse
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
+      try {
+        partialAnalyses.push(JSON.parse(cleaned));
+      } catch (parseError) {
+        console.error("❌ Failed to parse AI response for chunk:", parseError);
+      }
+    }
 
     let analysisResult;
-    try {
-      analysisResult = JSON.parse(cleaned);
-      console.log("✅ AI response parsed successfully");
-      console.log(
-        "📊 Analysis result:",
-        JSON.stringify(analysisResult, null, 2)
-      );
-    } catch (parseError) {
-      console.error("❌ Failed to parse AI response:", parseError);
-      console.error("Raw AI response:", aiResponse);
-      return res.status(500).json({
-        error: "AI response parsing failed",
-        details: parseError.message,
-        aiResponse: aiResponse.substring(0, 1000),
+    if (partialAnalyses.length === 1) {
+      analysisResult = partialAnalyses[0];
+    } else if (partialAnalyses.length > 1) {
+      // Merge all topics taking the highest probability for a given topic
+      const subject = partialAnalyses.find(p => p.subject && p.subject !== "Unknown Subject")?.subject || "Unknown";
+      const year = partialAnalyses.find(p => p.year && p.year !== "Unknown Year")?.year || "Unknown";
+      const allTopicsObj = {};
+      partialAnalyses.flatMap(p => p.topics || []).forEach(t => {
+        const key = t.name.toLowerCase().trim();
+        if (!allTopicsObj[key] || allTopicsObj[key].probability < t.probability) {
+          allTopicsObj[key] = t;
+        }
       });
+      analysisResult = {
+        subject,
+        year,
+        topics: Object.values(allTopicsObj).sort((a, b) => b.probability - a.probability),
+        analyzed: true
+      };
+    } else {
+      analysisResult = { subject: "Unknown", year: "Unknown", topics: [], analyzed: false };
     }
+    console.log("✅ Final Analysis parsed successfully");
 
     console.log("💾 Saving to database...");
 
@@ -170,7 +209,8 @@ ${pqtexts.text.substring(0, 20000)}
       });
     }
 
-    console.log("✅ Past question saved with ID:", pastQuestionData.id);
+    createdPqId = pastQuestionData.id;
+    console.log("✅ Past question saved with ID:", createdPqId);
 
     // Insert topics into database
     if (analysisResult.topics && analysisResult.topics.length > 0) {
@@ -218,6 +258,21 @@ ${pqtexts.text.substring(0, 20000)}
   } catch (error) {
     console.error("❌ Upload error:", error);
     console.error("Error stack:", error.stack);
+
+    // ===== ATOMIC ROLLBACK =====
+    try {
+      if (createdPqId) {
+        await supabase.from("past_question_topics").delete().eq("past_question_id", createdPqId);
+        await supabase.from("past_questions").delete().eq("id", createdPqId);
+        console.log(`✅ Rolled back DB record ${createdPqId} and its topics`);
+      }
+      if (uploadedFilePath) {
+        await supabase.storage.from("notes").remove([uploadedFilePath]);
+        console.log(`✅ Rolled back storage file ${uploadedFilePath}`);
+      }
+    } catch (cleanupError) {
+      console.error("Failed to cleanup after error:", cleanupError);
+    }
 
     res.status(500).json({
       error: "Upload failed",
