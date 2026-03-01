@@ -46,7 +46,7 @@ Rules:
 
     const motivationQuote = aiResponse.trim();
 
-    console.log("✅ Motivation quote received:", motivationQuote);
+    // console.log("✅ Motivation quote received:", motivationQuote);
 
     // Save directly as string, no parsing needed
     const { data: motivation, error: updateError } = await supabase
@@ -76,8 +76,8 @@ Rules:
       },
     });
   } catch (error) {
-    console.error("❌ Upload error:", error);
-    console.error("Error stack:", error.stack);
+    // console.error("❌ Upload error:", error);
+    // console.error("Error stack:", error.stack);
 
     res.status(500).json({
       error: "Upload failed",

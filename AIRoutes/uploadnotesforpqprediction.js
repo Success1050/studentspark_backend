@@ -14,7 +14,7 @@ router.post("/upload-notes-for-pq", async (req, res) => {
   try {
     const { userId, noteIds } = req.body;
 
-    console.log("📝 Received request:", { userId, noteIds });
+    // console.log("📝 Received request:", { userId, noteIds });
 
     // Validate inputs
     if (!userId || !noteIds || noteIds.length === 0) {
@@ -225,7 +225,7 @@ Generate practice questions with full answers now. Be thorough and comprehensive
       ],
     });
 
-    console.log("✅ OpenAI response received");
+    // console.log("✅ OpenAI response received");
 
     const aiResponse = completion.choices[0].message.content ?? "";
 
@@ -269,7 +269,7 @@ Generate practice questions with full answers now. Be thorough and comprehensive
       });
     }
 
-    console.log("💾 Inserting into Supabase...");
+    // console.log("💾 Inserting into Supabase...");
 
     // Insert everything in one go - just store the entire JSONB
     const { data: questionSet, error: questionSetError } = await supabase
@@ -296,8 +296,8 @@ Generate practice questions with full answers now. Be thorough and comprehensive
       });
     }
 
-    console.log("✅ Practice question set inserted, ID:", questionSet.id);
-    console.log("🎉 Practice questions generation complete!");
+    // console.log("✅ Practice question set inserted, ID:", questionSet.id);
+    // console.log("🎉 Practice questions generation complete!");
 
     if (!usage) {
       // No record today → create new

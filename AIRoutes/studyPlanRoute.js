@@ -85,7 +85,7 @@ router.post("/study-plan", async (req, res) => {
     // Fetch note summaries from Supabase
     let noteSummaries = "";
     if (noteIds && noteIds.length > 0) {
-      console.log("📚 Fetching summaries for", noteIds.length, "notes...");
+      // console.log("📚 Fetching summaries for", noteIds.length, "notes...");
 
       const { data: notes, error: notesError } = await supabase
         .from("notes")
@@ -93,7 +93,7 @@ router.post("/study-plan", async (req, res) => {
         .in("id", noteIds)
         .eq("user_id", userId);
 
-      console.log("the notes", notes);
+      // console.log("the notes", notes);
 
       if (notesError) {
         console.error("❌ Error fetching notes:", notesError);
@@ -134,14 +134,14 @@ ${formattedTopics || "No topics available"}
       timeZone: "Africa/Lagos",
     });
 
-    console.log("🕒 Current Lagos time:", lagosTime);
-    console.log("📅 Current Lagos date:", currentLagosDate);
+    // console.log("🕒 Current Lagos time:", lagosTime);
+    // console.log("📅 Current Lagos date:", currentLagosDate);
 
-    console.log("🤖 Calling OpenAI...");
+    // console.log("🤖 Calling OpenAI...");
 
-    console.log("the note summary", noteSummaries);
+    // console.log("the note summary", noteSummaries);
 
-    console.log("🤖 Calling OpenAI...");
+    // console.log("🤖 Calling OpenAI...");
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -306,15 +306,15 @@ Remember: Schedule today's tasks AFTER the current time (${lagosTime}) in West A
     let studyPlanData;
     try {
       studyPlanData = JSON.parse(cleaned);
-      console.log("✅ JSON parsed successfully");
-      console.log(
-        "📊 Plan size:",
-        JSON.stringify(studyPlanData).length,
-        "characters"
-      );
+      // console.log("✅ JSON parsed successfully");
+      // console.log(
+      //   "📊 Plan size:",
+      //   JSON.stringify(studyPlanData).length,
+      //   "characters"
+      // );
     } catch (parseError) {
-      console.error("❌ Failed to parse AI output:", parseError);
-      console.error("Raw AI response:", aiResponse.substring(0, 500));
+      // console.error("❌ Failed to parse AI output:", parseError);
+      // console.error("Raw AI response:", aiResponse.substring(0, 500));
       return res.status(500).json({
         success: false,
         error: "Failed to parse AI response",
@@ -395,7 +395,7 @@ Remember: Schedule today's tasks AFTER the current time (${lagosTime}) in West A
       }))
     );
 
-    console.log("💾 Inserting", tasks.length, "tasks...");
+    // console.log("💾 Inserting", tasks.length, "tasks...");
 
     const { error: tasksError } = await supabase
       .from("study_tasks")
@@ -439,8 +439,8 @@ Remember: Schedule today's tasks AFTER the current time (${lagosTime}) in West A
       taskCount: tasks.length,
     });
   } catch (error) {
-    console.error("❌ Unexpected error:", error);
-    console.error("Error stack:", error.stack);
+    // console.error("❌ Unexpected error:", error);
+    // console.error("Error stack:", error.stack);
 
     res.status(500).json({
       success: false,

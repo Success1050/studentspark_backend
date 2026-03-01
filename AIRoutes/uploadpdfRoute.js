@@ -98,12 +98,12 @@ router.post("/upload-note", async (req, res) => {
 
     const hasNoText = !pdfText || cleanText.length < 50;
 
-    console.log(
-      "Original text length:",
-      pdfText.text ? pdfText.text.length : 0
-    );
-    console.log("Clean text length:", cleanText.length);
-    console.log("Has no meaningful text:", hasNoText);
+    // console.log(
+    //   "Original text length:",
+    //   pdfText.text ? pdfText.text.length : 0
+    // );
+    // console.log("Clean text length:", cleanText.length);
+    // console.log("Has no meaningful text:", hasNoText);
 
     if (hasNoText) {
       console.log("PDF seems scanned → Performing batched OCR with GPT-4o-mini directly (faster)");
@@ -120,7 +120,7 @@ router.post("/upload-note", async (req, res) => {
 
       for (let i = 0; i < images.length; i += batchSize) {
         const batch = images.slice(i, i + batchSize);
-        console.log(`🔍 OCR processing pages ${i + 1} to ${Math.min(i + batchSize, images.length)}...`);
+        // console.log(`🔍 OCR processing pages ${i + 1} to ${Math.min(i + batchSize, images.length)}...`);
 
         const ocrResponse = await openai.chat.completions.create({
           model: "gpt-4o-mini",

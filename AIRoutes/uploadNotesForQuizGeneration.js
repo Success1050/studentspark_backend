@@ -15,7 +15,7 @@ router.post("/upload-notes-for-quiz", async (req, res) => {
   try {
     const { userId, noteId } = req.body;
 
-    console.log("📝 Received request:", { userId, noteId });
+    // console.log("📝 Received request:", { userId, noteId });
 
     // Validate inputs
     if (!userId || !noteId) {
@@ -60,7 +60,7 @@ router.post("/upload-notes-for-quiz", async (req, res) => {
     }
 
     // Fetch note summaries from Supabase
-    console.log("📚 Fetching summaries for", noteId, "notes...");
+    // console.log("📚 Fetching summaries for", noteId, "notes...");
 
     const { data: note, error: notesError } = await supabase
       .from("notes")
@@ -76,7 +76,7 @@ router.post("/upload-notes-for-quiz", async (req, res) => {
       });
     }
 
-    console.log("✅ Fetched note:", note.title);
+    // console.log("✅ Fetched note:", note.title);
 
     // Format note summaries for AI
     const formattedTopics = (note.lists_of_topic || [])
@@ -98,9 +98,9 @@ ${formattedTopics || "No topics available"}
 
 ---`;
 
-    console.log(noteSummary);
+    // console.log(noteSummary);
 
-    console.log("🤖 Calling OpenAI to generate practice questions...");
+    // console.log("🤖 Calling OpenAI to generate practice questions...");
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -297,8 +297,8 @@ Generate the quiz now in the specified JSON format. Focus on testing understandi
       });
     }
 
-    console.log("✅ Practice question set inserted, ID:", questionSet.id);
-    console.log("🎉 Practice questions generation complete!");
+    // console.log("✅ Practice question set inserted, ID:", questionSet.id);
+    // console.log("🎉 Practice questions generation complete!");
 
     if (!usage) {
       // No record today → create new
